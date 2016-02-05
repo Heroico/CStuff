@@ -4,9 +4,7 @@ import logging
 import os
 import gzip
 import Logging
-
-FILE = "2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz"
-OUTPUT = "PB8K.db"
+import GencodeFile
 
 class TF1(object):
     PValue=0
@@ -53,16 +51,15 @@ def row_from_comps(gene, comps, TF):
     row = (snp, gene, zscore, reference_allele, effect_allele,)
     return row
 
-def process_row(gene, row, genes, data):
+#add ensemble id. "gene" becomes a "gene name", conceptually
+def process_row(gene, row, genes):
     if not gene in genes:
         genes[gene] = []
     genes[gene].append(row)
 
-    data.append(row)
-
-def parse_input_file(connection, input_file, TF):
-    data = []
+def parse_input_file(connection, input_file, gencode_file, TF):
     genes = {}
+    logging.info("Opening pheno phile")
     with gzip.open(input_file) as file:
         for i,line in enumerate(file):
             if i==0:
@@ -75,19 +72,38 @@ def parse_input_file(connection, input_file, TF):
                 multiple_genes = gene.split(",")
                 for g in multiple_genes:
                     row = row_from_comps(g, comps, TF)
-                    process_row(g, row, genes, data)
+                    process_row(g, row, genes)
             else:
                 row = row_from_comps(gene, comps, TF)
-                process_row(gene, row, genes, data)
+                process_row(gene, row, genes)
+
+    logging.info("Opening gencode file")
+
+    class GenCodeCallback(object):
+        def __init__(self, genes):
+            self.genes = genes
+            self.selected = {}
+
+        def __call__(self, gencode):
+            if gencode.name in self.genes:
+                rows = self.genes[gencode.name]
+                self.selected[gencode.name] = [(row[0], gencode.ensemble_version, row[1], row[2], row[3], row[4]) for row in rows]
+    callback = GenCodeCallback(genes)
+    GencodeFile.parse_gencode_file(gencode_file, callback)
+    genes = callback.selected
 
     cursor = connection.cursor()
-    cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", data)
 
+    logging.info("Inserting snp entries")
+    data = []
+    for rows in genes.values():
+        cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[2], r[3], r[4], r[5]) for r in rows])
+
+    logging.info("Inserting gene entries")
     for gene, rows in genes.iteritems():
-        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (gene, gene, "NA", len(rows)))
+        r = rows[0]
+        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(r)))
     connection.commit()
-
-
 
 class BuildModel(object):
     def __init__(self, args):
@@ -101,14 +117,15 @@ class BuildModel(object):
         connection = build_db(self.args.output_file)
 
         setup_db(connection)
-        parse_input_file(connection, self.args.input_file, TF1)
+        parse_input_file(connection, self.args.input_file, self.args.gencode_file, TF1)
 
 
 if __name__ == "__main__":
     class Args(object):
         def __init__(self):
-            self.input_file = FILE
-            self.output_file = OUTPUT
+            self.input_file = "data/2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz"
+            self.gencode_file = "data/gencode.v22.annotation.gtf.gz"
+            self.output_file = "results/PB8K.db"
             self.verbosity = 10
 
     args = Args()
