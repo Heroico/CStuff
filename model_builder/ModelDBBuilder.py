@@ -97,12 +97,12 @@ def parse_input_file(connection, input_file, gencode_file, TF):
     logging.info("Inserting snp entries")
     data = []
     for rows in genes.values():
-        cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[2], r[3], r[4], r[5]) for r in rows])
+        cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[1], r[3], r[4], r[5]) for r in rows])
 
     logging.info("Inserting gene entries")
     for gene, rows in genes.iteritems():
         r = rows[0]
-        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(r)))
+        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(rows)))
     connection.commit()
 
 class BuildModel(object):

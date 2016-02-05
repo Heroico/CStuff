@@ -11,6 +11,11 @@ class SNPTF(object):
     RS_ID_dbSNP142_CHG37p13=6
     Num_alt_per_site=7
 
+class SNP_E_F(object):
+    RSID=0
+    VARIANT=1
+    REF_ALLELE=0
+    EFF_ALLELE=1
 
 class BuildSnpDictCallback(object):
     def __init__(self, weight_db):
@@ -24,9 +29,10 @@ class BuildSnpDictCallback(object):
         if len(comps) != 8:
             return
 
-        snp = comps[SNPTF.RS_ID_dbSNP142_CHG37p13]
-        if snp in self.weight_db.genes_for_an_rsid:
-            self.snps[snp] = (comps[SNPTF.VariantID], comps[SNPTF.Ref_b37], comps[SNPTF.Alt])
+        rsid = comps[SNPTF.RS_ID_dbSNP142_CHG37p13]
+        variant = comps[SNPTF.VariantID]
+        if rsid in self.weight_db.genes_for_an_rsid:
+            self.snps[variant] = (rsid, variant, comps[SNPTF.Ref_b37], comps[SNPTF.Alt])
 
 
 def build_snp_dict(path, weight_db_logic):
