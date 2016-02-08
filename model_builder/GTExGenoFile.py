@@ -22,7 +22,7 @@ class BuildGeneExpressionCallback(object):
 
         variant_comps = variant.split("_")
         ref_allele = variant_comps[2]
-        eff_allele = variant_comps[1]
+        eff_allele = variant_comps[3]
 
         snp_info = self.snp_dict[variant]
         rsid = snp_info[GTExSNPFile.SNP_E_F.RSID]
@@ -44,7 +44,8 @@ class BuildGeneExpressionCallback(object):
 
             exp = self.collected[gene]
             for i, dosage in enumerate(comps[1:]):
-                exp[self.individuals[i]] += (2-dosage if flip else dosage) * weight.weight
+                d = float(dosage)
+                exp[self.individuals[i]] += (2-d if flip else d) * weight.weight
 
 
 def build_gene_expression(path, weight_db, snp_dict):
