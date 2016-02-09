@@ -13,6 +13,7 @@ class BuildGeneExpressionCallback(object):
     def __call__(self, i, comps):
         if i == 0:
             self.individuals = comps[3:] #individuals
+            logging.info("Individuals: %d", len(self.individuals))
             return
         #snp geno7
         variant = comps[0]
@@ -30,6 +31,11 @@ class BuildGeneExpressionCallback(object):
             logging.log(6, "Missing variant %s, rsid %s in weight_db", variant, rsid)
             return
 
+        dosages = comps[1:]
+        if len(dosages) != len(self.individuals):
+            logging.log(5,"Bad dosage line: %s", str(comps))
+            return
+
         for gene in self.weight_db.genes_for_an_rsid[rsid]:
             weight = self.weight_db.weights_by_gene_name[gene][rsid]
             if {ref_allele, eff_allele} != {weight.ref_allele, weight.eff_allele}:
@@ -43,7 +49,8 @@ class BuildGeneExpressionCallback(object):
             flip = ref_allele == weight.eff_allele and eff_allele == weight.ref_allele
 
             exp = self.collected[gene]
-            for i, dosage in enumerate(comps[1:]):
+
+            for i, dosage in enumerate(dosages):
                 d = float(dosage)
                 exp[self.individuals[i]] += (2-d if flip else d) * weight.weight
 
