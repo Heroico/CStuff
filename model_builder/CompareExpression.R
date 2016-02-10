@@ -37,13 +37,14 @@ load_file <- function(path) {
 
 build_results <- function(d1, d2) {
     genes <- rownames(d2)
-    OUT <- data.frame(gene=character(), beta=numeric(), zstat=numeric(), pval=numeric(), se_beta=numeric(), R2=numeric())
+    OUT <- data.frame(gene=character(), beta=numeric(), zstat=numeric(), pval=numeric(), se_beta=numeric(), R2=numeric(), R=numeric())
     for (gene in genes) {
         x <- as.numeric(t(d1[gene,]))
         y <- as.numeric(t(d2[gene,]))
         s <- summary(lm(y ~ x))
         results = coef(s)[c(2,6,8,4)]
-        l = data.frame(gene=gene, beta=results[1], zstat=results[2], pval=results[3], se_beta=results[4], R2=s$r.squared)
+        c <- cor(x, y)
+        l = data.frame(gene=gene, beta=results[1], zstat=results[2], pval=results[3], se_beta=results[4], R2=s$r.squared, R=c)
         OUT<-rbind(OUT,l)
     }
     #colnames(OUT)<-c("gene","beta","z-stat","pval", "se(beta)", "R2")
