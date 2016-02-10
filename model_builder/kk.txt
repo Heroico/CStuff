@@ -1,5 +1,0 @@
-INFO - Opening pheno phile
-INFO - Opening gencode file
-INFO - Inserting snp entries
-INFO - Inserted 592203 snp entries
-INFO - Inserting 5908 gene entries
