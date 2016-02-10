@@ -57,7 +57,7 @@ def process_row(gene, row, genes):
         genes[gene] = []
     genes[gene].append(row)
 
-def parse_input_file(connection, input_file, gencode_file, TF):
+def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None):
     genes = {}
     logging.info("Opening pheno phile")
     with gzip.open(input_file) as file:
@@ -66,6 +66,13 @@ def parse_input_file(connection, input_file, gencode_file, TF):
                 continue
 
             comps = line.strip().split()
+
+            if fdr_filter:
+                fdr = comps[TF.FDR]
+                if float(fdr) > fdr_filter:
+                    snp = comps[TF.SNPName]
+                    logging.log(9,"Snp %s doesn't pass fdr filter: %s", snp, fdr)
+                    continue
 
             gene = comps[TF.HUGO]
             if "," in gene:
@@ -96,10 +103,13 @@ def parse_input_file(connection, input_file, gencode_file, TF):
 
     logging.info("Inserting snp entries")
     data = []
+    i = 0
     for rows in genes.values():
+        i += len(rows)
         cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[1], r[3], r[4], r[5]) for r in rows])
+    logging.info("Inserted %d snp entries", i)
 
-    logging.info("Inserting gene entries")
+    logging.info("Inserting %d gene entries", len(genes.keys()))
     for gene, rows in genes.iteritems():
         r = rows[0]
         cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(rows)))
@@ -117,15 +127,15 @@ class BuildModel(object):
         connection = build_db(self.args.output_file)
 
         setup_db(connection)
-        parse_input_file(connection, self.args.input_file, self.args.gencode_file, TF1)
-
+        parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter)
 
 if __name__ == "__main__":
     class Args(object):
         def __init__(self):
             self.input_file = "data/2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz"
             self.gencode_file = "data/gencode.v22.annotation.gtf.gz"
-            self.output_file = "results/PB8K.db"
+            self.output_file = "results/PB8K_f.db"
+            self.fdr_filter = float(0.05)
             self.verbosity = 10
 
     args = Args()
