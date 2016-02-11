@@ -3,6 +3,7 @@ import sqlite3
 import logging
 import os
 import gzip
+import math
 import Logging
 import GencodeFile
 
@@ -57,7 +58,7 @@ def process_row(gene, row, genes):
         genes[gene] = []
     genes[gene].append(row)
 
-def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None):
+def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, use_variance=None, sample_size=None):
     genes = {}
     logging.info("Opening pheno phile")
     with gzip.open(input_file) as file:
@@ -99,18 +100,43 @@ def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None):
     GencodeFile.parse_gencode_file(gencode_file, callback)
     genes = callback.selected
 
+    if use_variance:
+        logging.info("Opening variance file")
+        vars = {}
+        with gzip.open(use_variance, "rb") as var_file:
+            for line in var_file:
+                comps = line.strip().split(",")
+                vars[comps[0]] = float(comps[1])
+        keys = genes.keys()
+        for key in keys:
+            rows = genes[key]
+            new_rows = []
+            for r in rows:
+                snp = r[0]
+                if not snp in vars:
+                    continue
+                v = vars[snp]
+                std = math.sqrt(v/sample_size)
+                new_rows.append([r[0], r[1], r[2], str(float(r[3])*std), r[4], r[5]])
+            genes[key] = new_rows
+
+
     cursor = connection.cursor()
 
     logging.info("Inserting snp entries")
     data = []
     i = 0
     for rows in genes.values():
+        if len(rows) == 0:
+            continue
         i += len(rows)
         cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[1], r[3], r[4], r[5]) for r in rows])
     logging.info("Inserted %d snp entries", i)
 
     logging.info("Inserting %d gene entries", len(genes.keys()))
     for gene, rows in genes.iteritems():
+        if len(rows) == 0:
+            continue
         r = rows[0]
         cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(rows)))
     connection.commit()
@@ -127,15 +153,18 @@ class BuildModel(object):
         connection = build_db(self.args.output_file)
 
         setup_db(connection)
-        parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter)
+        parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter,
+                         self.args.use_variance, self.args.sample_size)
 
 if __name__ == "__main__":
     class Args(object):
         def __init__(self):
             self.input_file = "data/2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz"
             self.gencode_file = "data/gencode.v22.annotation.gtf.gz"
-            self.output_file = "results/PB8K_f.db"
+            self.output_file = "results/PB8K_beta_f.db"
             self.fdr_filter = float(0.05)
+            self.use_variance = "data/VAR_TGF_EUR_PB8K.txt.gz"
+            self.sample_size = 5311
             self.verbosity = 10
 
     args = Args()
