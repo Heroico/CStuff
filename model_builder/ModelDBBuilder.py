@@ -53,12 +53,22 @@ def row_from_comps(gene, comps, TF):
     return row
 
 #add ensemble id. "gene" becomes a "gene name", conceptually
-def process_row(gene, row, genes):
+def process_row(gene, row, genes, only_best_snp =None):
     if not gene in genes:
         genes[gene] = []
-    genes[gene].append(row)
+    rows = genes[gene]
+    if only_best_snp:
+        if len(rows):
+            r = rows[0]
+            if math.fabs(float(r[2])) > math.fabs(float(row[2])):
+                del rows[0]
+                rows.append(row)
+        else:
+            rows.append(row)
+    else:
+        rows.append(row)
 
-def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, use_variance=None, sample_size=None):
+def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, use_variance=None, sample_size=None, only_best_snp=None):
     genes = {}
     logging.info("Opening pheno phile")
     with gzip.open(input_file) as file:
@@ -80,10 +90,10 @@ def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, 
                 multiple_genes = gene.split(",")
                 for g in multiple_genes:
                     row = row_from_comps(g, comps, TF)
-                    process_row(g, row, genes)
+                    process_row(g, row, genes, only_best_snp)
             else:
                 row = row_from_comps(gene, comps, TF)
-                process_row(gene, row, genes)
+                process_row(gene, row, genes, only_best_snp)
 
     logging.info("Opening gencode file")
 
@@ -133,12 +143,15 @@ def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, 
         cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[1], r[3], r[4], r[5]) for r in rows])
     logging.info("Inserted %d snp entries", i)
 
-    logging.info("Inserting %d gene entries", len(genes.keys()))
+    logging.info("Inserting gene entries")
+    i = 0
     for gene, rows in genes.iteritems():
         if len(rows) == 0:
             continue
         r = rows[0]
+        i += 1
         cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(rows)))
+    logging.info("Inserted %d gene entries", i)
     connection.commit()
 
 class BuildModel(object):
@@ -154,17 +167,18 @@ class BuildModel(object):
 
         setup_db(connection)
         parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter,
-                         self.args.use_variance, self.args.sample_size)
+                         self.args.use_variance, self.args.sample_size, self.args.only_best_snp)
 
 if __name__ == "__main__":
     class Args(object):
         def __init__(self):
             self.input_file = "data/2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz"
             self.gencode_file = "data/gencode.v22.annotation.gtf.gz"
-            self.output_file = "results/PB8K_beta_f.db"
+            self.output_file = "results/PB8K_beta_f_best_snp.db"
             self.fdr_filter = float(0.05)
             self.use_variance = "data/VAR_TGF_EUR_PB8K.txt.gz"
             self.sample_size = 5311
+            self.only_best_snp = True
             self.verbosity = 10
 
     args = Args()
