@@ -1,8 +1,6 @@
 #! /usr/bin/env Rscript
 library(argparse)
 library(dplyr)
-#library(tidyr)
-#library(reshape2)
 library(ggplot2)
 
 parser <- ArgumentParser(description='Compare gene expressions')
@@ -48,6 +46,7 @@ build_results <- function(d1, d2) {
         l = data.frame(gene=gene, beta=results[1], zstat=results[2], pval=results[3], se_beta=results[4], R2=s$r.squared, R=c)
         OUT<-rbind(OUT,l)
     }
+    OUT <- OUT[with(OUT, order(-R2)),]
     #colnames(OUT)<-c("gene","beta","z-stat","pval", "se(beta)", "R2")
     return(OUT)
 }
