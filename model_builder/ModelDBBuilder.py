@@ -6,6 +6,7 @@ import gzip
 import math
 import Logging
 import GencodeFile
+import Utilities
 
 class TF1(object):
     PValue=0
@@ -23,19 +24,6 @@ class TF1(object):
     DatasetsZScores=12
     HUGO=13
     FDR=14
-
-def build_db(db_path):
-    return sqlite3.connect(db_path)
-
-def setup_db(connection):
-    cursor = connection.cursor()
-    cursor.execute("CREATE TABLE extra (gene TEXT, genename TEXT, R2 DOUBLE,  `n.snps` INTEGER)")
-    cursor.execute("CREATE INDEX extra_gene ON extra (gene)")
-    cursor.execute("CREATE TABLE weights (rsid TEXT, gene TEXT, weight DOUBLE, ref_allele CHARACTER, eff_allele CHARACTER, pval DOUBLE, N INTEGER, cis INTEGER)")
-    cursor.execute("CREATE INDEX weights_rsid ON weights (rsid)")
-    cursor.execute("CREATE INDEX weights_gene ON weights (gene)")
-    cursor.execute("CREATE INDEX weights_rsid_gene ON weights (rsid, gene)")
-    connection.commit()
 
 def row_from_comps(gene, comps, TF):
     snp = comps[TF.SNPName]
@@ -130,29 +118,7 @@ def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, 
                 new_rows.append([r[0], r[1], r[2], str(float(r[3])*std), r[4], r[5]])
             genes[key] = new_rows
 
-
-    cursor = connection.cursor()
-
-    logging.info("Inserting snp entries")
-    data = []
-    i = 0
-    for rows in genes.values():
-        if len(rows) == 0:
-            continue
-        i += len(rows)
-        cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", [(r[0], r[1], r[3], r[4], r[5]) for r in rows])
-    logging.info("Inserted %d snp entries", i)
-
-    logging.info("Inserting gene entries")
-    i = 0
-    for gene, rows in genes.iteritems():
-        if len(rows) == 0:
-            continue
-        r = rows[0]
-        i += 1
-        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?)", (r[1], r[2], "NA", len(rows)))
-    logging.info("Inserted %d gene entries", i)
-    connection.commit()
+    Utilities.insert_entries(connection, genes)
 
 class BuildModel(object):
     def __init__(self, args):
@@ -163,9 +129,9 @@ class BuildModel(object):
             logging.info("DB already there, delete it if you want it done again")
             return
 
-        connection = build_db(self.args.output_file)
+        connection = Utilities.connect(self.args.output_file)
 
-        setup_db(connection)
+        Utilities.setup_db(connection)
         parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter,
                          self.args.use_variance, self.args.sample_size, self.args.only_best_snp)
 
