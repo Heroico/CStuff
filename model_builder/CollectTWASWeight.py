@@ -87,7 +87,7 @@ def parse_folder(folder, db, gencode_file):
         gene_id = gene_names[content]
         for i, snp in enumerate(snps):
             w = weights[i]
-            row = (snp[0], gene_id, content, snp[1], snp[2], w, )
+            row = (snp[0], gene_id, content, w, snp[1], snp[2] )
             rows.append(row)
         genes[content] = rows
 
