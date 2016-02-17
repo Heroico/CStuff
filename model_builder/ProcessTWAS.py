@@ -3,6 +3,7 @@
 import os
 import logging
 import shutil
+from subprocess import call
 import Utilities
 import Logging
 import TWASFormat
@@ -103,8 +104,49 @@ def build_twas_gene_folder(weight_folder, working_folder, gwas_results, content)
             line = " ".join(z) + "\n"
             file.write(line)
 
+    return working_path
 
-def parse_folder(input_folder, weight_folder, working_folder, gwas_results):
+def run_twas(input_folder, folder):
+    contents = os.listdir(folder)
+    zscore_file = [x for x in contents if "zscore" in x][0]
+    map_file = [x for x in contents if ".map" in x][0]
+    wgt = map_file.split(".map")[0]
+    cwd = os.getcwd()
+
+    zscore_path = folder + "/" +  zscore_file
+    result_path = folder + "/results.twas"
+
+    os.chdir(input_folder)
+    command = "bash bin/TWAS.sh"
+    command += " " + folder + "/" + wgt
+    command += " " + zscore_path
+    command += " " + result_path
+    call(command.split())
+    os.chdir(cwd)
+
+    result_path = result_path + ".imp"
+    zscore = 0
+    with open(result_path) as file:
+        file.readline()
+        comps = file.readline().split()
+        zscore = comps[4]
+
+    os.remove(result_path)
+    return zscore
+
+def parse_folder(input_folder, weight_folder):
+    contents = os.listdir(weight_folder)
+    logging.info("processing folder")
+    print len(contents)
+    for content in contents:
+        if content != "CCDC101":
+            continue
+        folder = os.path.join(weight_folder, content)
+        zscore = run_twas(input_folder, folder)
+        print content, zscore
+        break
+
+def parse_folder_with_gwas(input_folder, weight_folder, working_folder, gwas_results):
     contents = os.listdir(weight_folder)
     logging.info("processing folder")
     print len(contents)
@@ -112,8 +154,10 @@ def parse_folder(input_folder, weight_folder, working_folder, gwas_results):
         if content != "CCDC101":
             continue
 
-        build_twas_gene_folder(weight_folder, working_folder, gwas_results, content)
-        break
+        path = build_twas_gene_folder(weight_folder, working_folder, gwas_results, content)
+        #TODO: extract zscore
+        shutil.rmtree(path)
+
 
 
 class RunTWAS(object):
@@ -125,11 +169,17 @@ class RunTWAS(object):
             logging.info("%s already exists, delete it if you want ity done again", self.args.output)
             return
 
+        if self.args.working_folder and self.args.gwas_file:
+            self.run_with_gwas()
+        else:
+            parse_folder(self.args.input_folder, self.args.weight_folder)
+
+    def run_with_gwas(self):
         gwas_parser = GiantBMICallback()
         logging.info("Processing gwas file")
         Utilities.parse_file(self.args.gwas_file, gwas_parser)
         gwas_results = gwas_parser.results
-        parse_folder(self.args.input_folder, self.args.weight_folder, self.args.working_folder, gwas_results)
+        parse_folder_with_gwas(self.args.input_folder, self.args.weight_folder, self.args.working_folder, gwas_results)
 
 if __name__ == "__main__":
     class Args(object):
@@ -137,8 +187,8 @@ if __name__ == "__main__":
             self.gencode_file = "data/gencode.v22.annotation.gtf.gz"
             self.input_folder = "/home/heroico/Documents/Projects/Chicago/3rd/TWAS"
             self.weight_folder = "/home/heroico/Documents/Projects/Chicago/3rd/TWAS/WEIGHTS_YFS"
-            self.working_folder = "/home/heroico/Documents/Projects/Chicago/3rd/TWAS/WORKING"
-            self.gwas_file = "/home/heroico/Documents/Projects/Chicago/MetaXcan/software/data/GIANT/SNP_gwas_mc_merge_nogc.tbl.uniq.gz"
+            self.working_folder = None #"/home/heroico/Documents/Projects/Chicago/3rd/TWAS/WORKING"
+            self.gwas_file = None # "/home/heroico/Documents/Projects/Chicago/MetaXcan/software/data/GIANT/SNP_gwas_mc_merge_nogc.tbl.uniq.gz"
             self.output = "results/YFS_GIANT.csv"
             self.verbosity = 10
 
