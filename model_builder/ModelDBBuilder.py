@@ -48,7 +48,7 @@ def process_row(gene, row, genes, only_best_snp =None):
     if only_best_snp:
         if len(rows):
             r = rows[0]
-            if math.fabs(float(r[2])) > math.fabs(float(row[2])):
+            if math.fabs(float(r[2])) < math.fabs(float(row[2])):
                 del rows[0]
                 rows.append(row)
         else:
