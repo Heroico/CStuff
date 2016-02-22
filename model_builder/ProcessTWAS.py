@@ -3,6 +3,7 @@
 import os
 import logging
 import shutil
+import math
 from subprocess import call
 import Utilities
 import Logging
@@ -125,26 +126,35 @@ def run_twas(input_folder, folder):
     os.chdir(cwd)
 
     result_path = result_path + ".imp"
-    zscore = 0
+    zscore = "NA"
+    r2 = "NA"
     with open(result_path) as file:
         file.readline()
         comps = file.readline().split()
         zscore = comps[4]
+        r2 = comps[5]
 
     os.remove(result_path)
-    return zscore
+    return zscore, r2
 
-def parse_folder(input_folder, weight_folder):
+def parse_folder(input_folder, weight_folder, output):
     contents = os.listdir(weight_folder)
-    logging.info("processing folder")
-    print len(contents)
+    l = len(contents)
+    logging.info("processing %d elements at folder", l)
+
+    results = {}
     for content in contents:
-        if content != "CCDC101":
-            continue
         folder = os.path.join(weight_folder, content)
-        zscore = run_twas(input_folder, folder)
-        print content, zscore
-        break
+        zscore, r2 = run_twas(input_folder, folder)
+        results[content] = (content, zscore, r2)
+
+    keys = sorted(results.keys(), key= lambda r: math.fabs(float(results[r][1])))
+    with open(output, "w") as file:
+        file.write("gene zscore r2\n")
+        for key in keys:
+            r = results[key]
+            line = " ".join(r) + "\n"
+            file.write(line)
 
 def parse_folder_with_gwas(input_folder, weight_folder, working_folder, gwas_results):
     contents = os.listdir(weight_folder)
@@ -172,7 +182,7 @@ class RunTWAS(object):
         if self.args.working_folder and self.args.gwas_file:
             self.run_with_gwas()
         else:
-            parse_folder(self.args.input_folder, self.args.weight_folder)
+            parse_folder(self.args.input_folder, self.args.weight_folder, self.args.output)
 
     def run_with_gwas(self):
         gwas_parser = GiantBMICallback()
@@ -189,7 +199,7 @@ if __name__ == "__main__":
             self.weight_folder = "/home/heroico/Documents/Projects/Chicago/3rd/TWAS/WEIGHTS_YFS"
             self.working_folder = None #"/home/heroico/Documents/Projects/Chicago/3rd/TWAS/WORKING"
             self.gwas_file = None # "/home/heroico/Documents/Projects/Chicago/MetaXcan/software/data/GIANT/SNP_gwas_mc_merge_nogc.tbl.uniq.gz"
-            self.output = "results/YFS_GIANT.csv"
+            self.output = "results/YFS_GIANT.txt"
             self.verbosity = 10
 
     args = Args()
