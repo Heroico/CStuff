@@ -7,35 +7,12 @@ import math
 import Logging
 import GencodeFile
 import Utilities
-
-class TF1(object):
-    PValue=0
-    SNPName=1
-    SNPChr=2
-    SNPChrPos=3
-    ProbeName=4
-    ProbeChr=5
-    ProbeCenterChrPos=6
-    CisTrans=7
-    SNPType=8
-    AlleleAssessed=9
-    OverallZScore=10
-    DatasetsWhereSNPProbePairIsAvailableAndPassesQC=11
-    DatasetsZScores=12
-    HUGO=13
-    FDR=14
+import PB8KFileInfo
+import VarianceFile
 
 def row_from_comps(gene, comps, TF):
     snp = comps[TF.SNPName]
-    alleles = {a for a in comps[TF.SNPType].split("/")}
-
-    #TODO: figure this out
-    assessed = comps[TF.AlleleAssessed]
-    for a in alleles:
-        if a == assessed:
-            effect_allele = a
-        else:
-            reference_allele = a
+    reference_allele, effect_allele = PB8KFileInfo.alleles(TF, comps)
     zscore = comps[TF.OverallZScore]
     row = (snp, gene, zscore, reference_allele, effect_allele,)
     return row
@@ -100,11 +77,7 @@ def parse_input_file(TF, connection, input_file, gencode_file, fdr_filter=None, 
 
     if use_variance:
         logging.info("Opening variance file")
-        vars = {}
-        with gzip.open(use_variance, "rb") as var_file:
-            for line in var_file:
-                comps = line.strip().split(",")
-                vars[comps[0]] = float(comps[1])
+        vars = VarianceFile.load_variance(use_variance)
         keys = genes.keys()
         for key in keys:
             rows = genes[key]
@@ -132,7 +105,7 @@ class BuildModel(object):
         connection = Utilities.connect(self.args.output_file)
 
         Utilities.setup_db(connection)
-        parse_input_file(TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter,
+        parse_input_file(PB8KFileInfo.TF1, connection, self.args.input_file, self.args.gencode_file, self.args.fdr_filter,
                          self.args.use_variance, self.args.sample_size, self.args.only_best_snp)
 
 if __name__ == "__main__":
