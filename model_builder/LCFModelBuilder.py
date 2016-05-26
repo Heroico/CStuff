@@ -4,6 +4,9 @@ import Logging
 import LCFileInfo
 import Utilities
 
+#ran with:
+# nohup python LCFModelBuilder.py --lctf_path /group/im-lab/nas40t2/Data/SummaryResults/protected/Leafcutter/sQTLs_geuv_summary.gen.txt.gz --gtex_snp_path /group/im-lab/nas40t2/Data/dbGaP/GTEx/V6-gtexportal/GTEx_OMNI_genot_1KG_imputed_var_info4_maf01_CR95_CHR_POSb37_ID_REF_ALT_release_v6.txt.gz --output_file /group/im-lab/nas40t2/abarbeira/Projects/model_dbs/PRS_sQTL_geuv.db > lctf.log 2>&1 &
+
 METHODS = {
     "BETA":LCFileInfo.entries_to_beta_weight_db_by_cluster,
     "ZSCORE":LCFileInfo.entries_to_zscore_weight_db_by_cluster,
@@ -28,6 +31,8 @@ def process(args):
 
     logging.info("Inserting entries")
     Utilities.insert_entries(connection, lctf_entries)
+
+    logging.info("Ran successfully")
 
 if __name__ == "__main__":
     import argparse

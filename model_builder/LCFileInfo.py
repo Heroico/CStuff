@@ -53,6 +53,7 @@ def fill_snp_id_from_gtex(entries, gtex_file_path, lctf_format=LCTF, gtex_format
             #we chose lctf snp_[chr]_pos as key
             snp_pos = "_".join(["snp", variant_comps[VARIANT_ID_F.CHR],pos])
 
+            # if we cannot get an rsid, we'lll los e it
             if not snp_pos in self.entries:
                 return
 
