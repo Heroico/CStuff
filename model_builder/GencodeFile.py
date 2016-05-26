@@ -39,6 +39,8 @@ class GenCode:
         self.ensemble = None
         self.version = None
         self.name = None
+        self.start_location = None
+        self.end_location = None
 
     @classmethod
     def loadFromShortRow(cls, row):

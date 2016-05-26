@@ -17,6 +17,13 @@ class SNP_E_F(object):
     REF_ALLELE=0
     EFF_ALLELE=1
 
+class VARIANT_ID_F(object):
+    CHR=0
+    POS=1
+    REF_ALLELE=2
+    ALT_ALLELE=3
+    VERSION=4
+
 class BuildSnpDictCallback(object):
     def __init__(self, weight_db):
         self.weight_db = weight_db
