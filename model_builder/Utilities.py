@@ -64,7 +64,7 @@ def insert_entries(db, gene_entries):
             continue
         r = rows[0]
         i += 1
-        insert = (e[WDBIF.GENE], e[WDBIF.GENE_NAME], "NA", len(rows), "NA")
+        insert = (r[WDBIF.GENE], r[WDBIF.GENE_NAME], "NA", len(rows), "NA")
         cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?, ?)", insert)
     logging.info("Inserted %d gene entries", i)
     db.commit()
