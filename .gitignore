@@ -71,3 +71,4 @@ Run*
 *.gz
 *.db
 *kk*
+.python-version
