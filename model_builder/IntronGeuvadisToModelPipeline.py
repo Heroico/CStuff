@@ -27,7 +27,7 @@ def run(args):
             intersection, args.geuvadis_pheno_path, args.geuvadis_expression_output)
 
     logging.info("Building Leafcutter expression")
-    # TODO
+    LCEFileInfo.to_pipeline_expression(intersection,args.intron_pheno_path, args.intron_expression_output, args.intron_annotation_output)
 
 if __name__ == "__main__":
     import argparse
@@ -42,7 +42,7 @@ if __name__ == "__main__":
                         default="data/GD462.GeneQuantRPKM.50FN.samplename.resk10.txt.gz")
 
     parser.add_argument("--intron_pheno_path",
-                        help="path to geuvadis file",
+                        help="path to intron file",
                         default="data/GE_CEU.txt.sorted.gz")
 
     parser.add_argument("--gtex_snp_path",
@@ -57,9 +57,13 @@ if __name__ == "__main__":
                         help="output where geuvadis expression will be saved",
                         default="results/geuvadis_expression.txt.gz")
 
-    parser.add_argument("--leafcutter_expression_output",
-                        help="output where leafcutter expression will be saved",
-                        default="results/leafcutter_expression.txt.gz")
+    parser.add_argument("--intron_expression_output",
+                        help="output where intron expression will be saved",
+                        default="results/intron_expression.txt.gz")
+
+    parser.add_argument("--intron_annotation_output",
+                        help="output where intron annotation will be saved",
+                        default="results/intron_annotation.txt.gz")
 
     parser.add_argument("--expect_throw",
                     help="Debug mode for incomplete gzipped file",
