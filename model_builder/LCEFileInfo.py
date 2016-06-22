@@ -74,7 +74,6 @@ class PipelineGeneAnnotationOutput(object):
 class LeafcutterExpressionIterator(object):
     def __init__(self, path):
         self.path = path
-        self.sample_ids = None
 
     def iterate(self, callbacks):
         with gzip.open(self.path) as file:

@@ -1,3 +1,8 @@
+import logging
+import math
+import Utilities
+import VarianceFile
+import GencodeFile
 
 class TF1(object):
     PValue=0
@@ -16,6 +21,8 @@ class TF1(object):
     HUGO=13
     FDR=14
 
+    HEADER="PValue\tSNPName\tSNPChr\tSNPChrPos\tProbeName\tProbeChr\tProbeCenterChrPos\tCisTrans\tSNPType\tAlleleAssessed\tOverallZScore\tDatasetsWhereSNPProbePairIsAvailableAndPassesQC\tDatasetsZScores\tHUGO\tFDR"
+
 def alleles(TF, comps):
     alleles = {a for a in comps[TF.SNPType].split("/")}
 
@@ -27,3 +34,134 @@ def alleles(TF, comps):
         else:
             reference_allele = a
     return reference_allele, effect_allele
+
+class FDRFilter(object):
+    def __init__(self, fdr_filter, TF=TF1):
+        self.TF = TF
+        self.fdr_filter = fdr_filter
+
+    def __call__(self, comps):
+        fdr = comps[self.TF.FDR]
+        if float(fdr) > self.fdr_filter:
+            snp = comps[self.TF.SNPName]
+            logging.log(9,"Snp %s doesn't pass fdr filter: %s", snp, fdr)
+            return False
+        return True
+
+# Function-like object to act as row builder
+# Zscore as weight
+# See Utilities.WDBIF format for output
+class ZScoreRowFromComps(object):
+    def __init__(self, tf=TF1):
+        self.TF = tf
+
+    def __call__(self, i, comps, gene_name):
+        snp = comps[self.TF.SNPName]
+        reference_allele, effect_allele = alleles(self.TF, comps)
+        zscore = comps[self.TF.OverallZScore]
+        row = (snp, None, gene_name, zscore, reference_allele, effect_allele)
+        return row
+# Function-like object to act as row builder
+# BETA as weight
+# See Utilities.WDBIF format for output
+class BetaRowFromComps(object):
+    def __init__(self, variance_file_path, sample_size, TF=TF1):
+        self.TF = TF
+        logging.info("Opening variance file")
+        self.vars = VarianceFile.load_variance(variance_file_path)
+        self.sample_size = sample_size
+
+    def __call__(self, i, comps, gene_name):
+        snp = comps[self.TF.SNPName]
+        reference_allele, effect_allele = alleles(self.TF, comps)
+        zscore = comps[self.TF.OverallZScore]
+        if not snp in self.vars:
+            return None
+        v = self.vars[snp]
+        std = math.sqrt(v/self.sample_size)
+        b = str(float(zscore)*std)
+        row = (snp, None, gene_name, b, reference_allele, effect_allele)
+        return row
+
+#keep all snps
+def process_all_rows(row, genes):
+    gene_name = row[Utilities.WDBIF.GENE_NAME]
+    if not gene_name in genes:
+        genes[gene_name] = {}
+    rows = genes[gene_name]
+    snp = row[Utilities.WDBIF.SNP]
+    if snp in rows:
+        #overwrite existing only if better
+        existing = rows[snp]
+        if float(row[Utilities.WDBIF.WEIGHT]) > float(existing[Utilities.WDBIF.WEIGHT]):
+            rows[snp] = row
+    else:
+        rows[snp] = row
+
+#keep only the best snp weight
+def keep_best_row(row, genes):
+    gene_name = row[Utilities.WDBIF.GENE_NAME]
+    if not gene_name in genes:
+        genes[gene_name] = {}
+    rows = genes[gene_name]
+    snp = row[Utilities.WDBIF.SNP]
+    if len(rows) == 0:
+        rows[snp] = row
+    else:
+        existing_key = rows.keys()[0]
+        r = rows[existing_key]
+        if math.fabs(float(r[Utilities.WDBIF.WEIGHT])) < math.fabs(float(row[Utilities.WDBIF.WEIGHT])):
+            del rows[existing_key]
+            rows[snp] = row
+
+# Master callback for each row in PB8K file
+class PB8KFileCallback(object):
+    def __init__(self, row_from_comps, process_row, row_filter, TF=TF1):
+        self.genes = {}
+        self.row_from_comps = row_from_comps
+        self.process_row = process_row
+        self.row_filter = row_filter
+        self.TF = TF
+
+    def __call__(self, i, comps):
+        if self.row_filter:
+            skip = self.row_filter(comps)
+            if skip:
+                return
+        gene_name = comps[self.TF.HUGO]
+        if "," in gene_name:
+            multiple_genes = gene_name.split(",")
+            for g in multiple_genes:
+                row = self.row_from_comps(i, comps, g)
+                if row:
+                    self.process_row(row, self.genes)
+        else:
+            row = self.row_from_comps(i, comps, gene_name)
+            if row:
+                self.process_row(row, self.genes)
+
+
+def parse_input_file(db_output_path, pheno_input_path, gencode_input_path,  pb8k_callback):
+    logging.info("Opening PB8K pheno phile")
+    file_iterator = Utilities.CSVFileIterator(pheno_input_path, delimiter="\t", header=TF1.HEADER, compressed=True)
+    file_iterator.iterate(pb8k_callback)
+
+    logging.info("Opening gencode file")
+    class GenCodeCallback(object):
+        def __init__(self, genes):
+            self.genes = genes
+            self.selected = {}
+
+        def __call__(self, gencode):
+            if gencode.name in self.genes:
+                rows = self.genes[gencode.name]
+                F = Utilities.WDBIF
+                self.selected[gencode.name] = [(row[F.SNP], gencode.ensemble_version, row[F.GENE_NAME], row[F.WEIGHT], row[F.REFERENCE_ALLELE], row[F.EFFECT_ALLELE]) for k,row in rows.iteritems()]
+    gencode_callback = GenCodeCallback(pb8k_callback.genes)
+    GencodeFile.parse_gencode_file(gencode_input_path, gencode_callback)
+    genes = gencode_callback.selected
+
+    logging.info("Saving entries")
+    connection = Utilities.connect(db_output_path)
+    Utilities.setup_db(connection)
+    Utilities.insert_entries(connection, genes)
