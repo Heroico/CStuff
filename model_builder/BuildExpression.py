@@ -42,15 +42,30 @@ class BuildExpressionWork(object):
         save_expression(self.args.output, gene_expression, individuals)
 
 if __name__ == "__main__":
-    class Args(object):
-        def __init__(self):
-            self.weight_db = "results/PB8K.db"
-            self.gtex_geno = "data/GTEx_Analysis_2015-01-12_eQTLInputFiles_snpMatrices.tar.gz"
-            self.gtex_snp = "data/GTEx_OMNI_genot_1KG_imputed_var_info4_maf01_CR95_CHR_POSb37_ID_REF_ALT_release_v6.txt.gz"
-            self.output = "results/PB8K_expression.txt.gz"
-            self.verbosity = 10
+    import argparse
+    parser = argparse.ArgumentParser("Build gene expresion from weight db")
 
-    args = Args()
+    parser.add_argument("--weight_db",
+                        help="path to weight db",
+                        default="results/PRS_PB8K_BETA_ALL.db")
+
+    parser.add_argument("--gtex_geno",
+                        help="Path to gtex genotype",
+                        default="data/GTEx_Analysis_2015-01-12_eQTLInputFiles_snpMatrices.tar.gz")
+
+    parser.add_argument("--gtex_snp",
+                        help= "snp metadata file",
+                        default="data/GTEx_OMNI_genot_1KG_imputed_var_info4_maf01_CR95_CHR_POSb37_ID_REF_ALT_release_v6.txt.gz")
+
+    parser.add_argument("--output",
+                        help="where to save expression",
+                        default="results/PRS_PB8K_BETA_ALL_expression.txt.gz")
+
+    parser.add_argument("--verbosity",
+                        help="Log verbosity level. 1 is everything being logged. 10 is only high level messages, above 10 will hardly log anything",
+                        default = "10")
+
+    args = parser.parse_args()
     Logging.configureLogging(int(args.verbosity))
 
     work = BuildExpressionWork(args)
