@@ -1,6 +1,15 @@
 import logging
 import Utilities
 import GTExSNPFile
+import re
+
+# Gtex geno file format
+class GPF(object):
+    SNP=0
+    GENE=1
+    BETA=2
+    T_STAT=3
+    P_VALUE=4
 
 # genotype
 class BuildGeneExpressionCallback(object):
@@ -12,7 +21,8 @@ class BuildGeneExpressionCallback(object):
 
     def __call__(self, i, comps):
         if i == 0:
-            self.individuals = comps[3:] #individuals
+            regexp = re.compile('^[\w-]+$')
+            self.individuals = [x for x in comps[1:] if regexp.match(x) is not None and not "Id" in x] #individuals
             logging.info("Individuals: %d", len(self.individuals))
             return
         #snp geno7

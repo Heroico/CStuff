@@ -5,9 +5,15 @@ import os
 
 def parse_file(path, callback, expect_throw=False):
     def parse(path, callback):
-        with gzip.open(path) as file:
-            for i, line in enumerate(file):
-                callback(i, line.strip().split())
+        if ".gz" in path:
+            with gzip.open(path) as file:
+                for i, line in enumerate(file):
+                    callback(i, line.strip().split())
+        else:
+            with open(path) as file:
+                for i, line in enumerate(file):
+                    callback(i, line.strip().split())
+
 
     if expect_throw:
         try:

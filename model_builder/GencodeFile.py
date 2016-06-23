@@ -1,6 +1,7 @@
 __author__ = 'heroico'
 #trimmed from PredictDBAnalysis/gencode_input
 
+import csv
 import Utilities
 
 K_NOT_GENES = ["transcript","exon","CDS","UTR","start_codon","stop_codon","Selenocysteine"];
@@ -92,6 +93,46 @@ def parse_gencode_file(path, callback):
 
     wrapper = Wrapper(callback)
     Utilities.parse_file(path, wrapper)
+
+class BuildGeneNameRelationShipCallback(object):
+    def __init__(self):
+        self.ensemble_to_name = {}
+        self.name_to_ensemble = {}
+
+    def __call__(self, i, comps):
+        if "##" in comps[0]:
+            return
+
+        feature = comps[GFTF.FEATURE_TYPE]
+        if feature != "gene":
+            return
+
+        gene_id = None
+        gene_name =None
+        key = None
+        value = None
+        key_value_pairs = [x.translate(None,';') for x in comps[GFTF.KEY_VALUE_PAIRS:]]
+
+        for i,string in enumerate(key_value_pairs):
+            if key is None:
+                key = string
+            elif value is None:
+                value = string.translate(None,'"\n')
+                if key == GFTF.GENE_ID:
+                    gene_id = value.translate(None,'"')
+                elif key == GFTF.GENE_NAME:
+                    gene_name = value.translate(None,'"')
+                key = None
+                value = None
+
+        self.ensemble_to_name[gene_id] = gene_name
+        self.name_to_ensemble[gene_name] = gene_id
+
+def ensemble_to_name_relationships(path):
+    callback = BuildGeneNameRelationShipCallback()
+    Utilities.parse_file(path, callback)
+    return callback.ensemble_to_name, callback.name_to_ensemble
+
 
 class GenCodeSet:
     """Collection of gencode data sets"""
