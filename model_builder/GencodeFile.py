@@ -2,6 +2,7 @@ __author__ = 'heroico'
 #trimmed from PredictDBAnalysis/gencode_input
 
 import csv
+import gzip
 import Utilities
 
 K_NOT_GENES = ["transcript","exon","CDS","UTR","start_codon","stop_codon","Selenocysteine"];
@@ -15,13 +16,26 @@ class GFTF:
     N_START_LOCATION = 3
     N_END_LOCATION = 4
     SCORE = 5
-    GENETIC_STRAND = 6
+    GENOMIC_STRAND = 6
     GENOMIC_PHASE = 7
     KEY_VALUE_PAIRS = 8
 
     #there are several other key-value pairs but we are concerned with these
     GENE_ID = "gene_id"
-    GENE_NAME = "gene_name"
+    TRANSCRIPT_ID = "transcript_id"
+    GENE_TYPE = "gene_type"
+    GENE_STATUS = "gene_status"
+    GENE_NAME = "gene_status"
+    TRANSCRIPT_TYPE = "transcript_type"
+    TRANSCRIPT_STATUS = "transcript_status"
+    TRANSCRIPT_NAME = "transcript_name"
+    EXON_NUMBER = "exon_number"
+    EXON_ID = "exon_id"
+    LEVEL = "level"
+
+    #some are missing
+    TAG = "tag"
+
 
 class GFTFS:
     """gencode short file table format"""
@@ -33,15 +47,45 @@ class GFTFS:
     GENE_NAME = 5
     GENE_TYPE = 6
 
-class GenCode:
+class GenCode(object):
     """-gencode- information. Yes, without 'e' in 'gene'"""
     def __init__(self):
+        #fixed fields
+        self.chromosome_name = None
+        self.annotation_source = None
+        self.feature_type = None
+        self.start_location = None
+        self.end_location = None
+        self.score = None
+        self.genomic_strand = None
+        self.genomic_phase = None
+
+        #key-value pairs, mandatory
+        self.gene_id = None
+        self.transcript_id = None
+        self.gene_type = None
+        self.gene_status = None
+        self.gene_name = None
+        self.transcript_type = None
+        self.transcript_status = None
+        self.transcript_name = None
+        self.exon_number = None
+        self.exon_id = None
+        self.level = None
+
+        #key-value pairs, mandatory
+        self.tag = None
+        self.ccdsid = None
+        self.havana_gene = None
+        self.havana_transcript = None
+        self.protein_id = None
+        self.ont = None
+        self.transcription_support_level = None
+
         self.ensemble_version = None
         self.ensemble = None
         self.version = None
         self.name = None
-        self.start_location = None
-        self.end_location = None
 
     @classmethod
     def loadFromShortRow(cls, row):
@@ -55,6 +99,15 @@ class GenCode:
     def loadFromGTFRow(cls, comps):
         gencode = GenCode()
 
+        gencode.chromosome_name = comps[GFTF.CHROMOSOME]
+        gencode.annotation_source = comps[GFTF.ANNOTATION_SOURCE]
+        gencode.feature_type = comps[GFTF.FEATURE_TYPE]
+        gencode.start_location = comps[GFTF.N_START_LOCATION]
+        gencode.end_location = comps[GFTF.N_END_LOCATION]
+        gencode.score = comps[GFTF.SCORE]
+        gencode.genomic_strand = comps[GFTF.GENOMIC_STRAND]
+        gencode.genomic_phase = comps[GFTF.GENOMIC_PHASE]
+
         key = None
         value = None
         key_value_pairs = [x.translate(None,';') for x in comps[GFTF.KEY_VALUE_PAIRS:]]
@@ -65,17 +118,46 @@ class GenCode:
             elif value is None:
                 value = string.translate(None,'"\n')
                 if key == GFTF.GENE_ID:
+                    gencode.gene_id = value
                     gencode.ensemble_version = value.translate(None,'"')
                     gencode.ensemble = gencode.ensemble_version.split('.')[0]
                     gencode.version = gencode.ensemble_version.split('.')[1]
+                elif key == GFTF.TRANSCRIPT_ID:
+                    gencode.transcript_id = value
+                elif key == GFTF.GENE_TYPE:
+                    gencode.gene_type = value
+                elif key == GFTF.GENE_STATUS:
+                    gencode.gene_status = value
                 elif key == GFTF.GENE_NAME:
+                    gencode.gene_name = value
                     gencode.name = value
+                elif key == GFTF.TRANSCRIPT_TYPE:
+                    gencode.transcript_type = value
+                elif key == GFTF.TRANSCRIPT_STATUS:
+                    gencode.transcript_status = value
+                elif key == GFTF.TRANSCRIPT_NAME:
+                    gencode.transcript_name = value
+                elif key == GFTF.EXON_NUMBER:
+                    gencode.exon_number = value
+                elif key == GFTF.EXON_ID:
+                    gencode.exon_id = value
+                elif key == GFTF.LEVEL:
+                    gencode.exon_id = value
+                elif key == GFTF.TAG:
+                    gencode.tag = value
                 key = None
                 value = None
 
         return gencode
 
-def parse_gencode_file(path, callback):
+
+class GathererCallback(object):
+    def __init__(self):
+        self.results = []
+    def __call__(self, gencode):
+        self.results.append(gencode)
+
+def parse_gencode_file(path, callback, only_genes=True):
     class Wrapper(object):
         def __init__(self, c):
             self.callback = c
@@ -85,7 +167,7 @@ def parse_gencode_file(path, callback):
                 return
 
             feature = comps[GFTF.FEATURE_TYPE]
-            if feature in K_NOT_GENES:
+            if only_genes and feature in K_NOT_GENES:
                 return
 
             gencode = GenCode.loadFromGTFRow(comps)
