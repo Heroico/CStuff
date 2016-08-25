@@ -2,6 +2,7 @@ import gzip
 import sqlite3
 import logging
 import os
+import math
 
 def parse_file(path, callback, expect_throw=False):
     def parse(path, callback):
@@ -105,7 +106,7 @@ class FileIterator(object):
             if self.header is not None:
                 line = file_object.readline().strip("\n")
                 if len(self.header) and line != self.header:
-                    raise RuntimeError(self.path, "Unexpected header")
+                    raise RuntimeError(self.path, "Unexpected header: got:\n%s\n,expected:%s\n" %(line, self.header))
 
         self._processFile(file_object, callback)
 
@@ -138,3 +139,35 @@ class CSVFileIterator(FileIterator):
             reader = csv.reader(file_object, delimiter=self.delimiter, quotechar=self.quotechar)
             for i,row in enumerate(reader):
                 callback(i, row)
+
+#keep all snps
+def process_all_rows(row, genes, gene_key):
+    gene_key = row[gene_key]
+    if not gene_key in genes:
+        genes[gene_key] = {}
+    rows = genes[gene_key]
+    snp = row[WDBIF.SNP]
+    if snp in rows:
+        #overwrite existing only if better
+        existing = rows[snp]
+        if math.fabs(float(existing[WDBIF.WEIGHT])) < math.fabs(float(row[WDBIF.WEIGHT])):
+            rows[snp] = row
+    else:
+        rows[snp] = row
+
+#keep only the best snp weight
+def keep_best_row(row, genes, gene_key):
+    gene_key = row[gene_key]
+    if not gene_key in genes:
+        genes[gene_key] = {}
+
+    rows = genes[gene_key]
+    snp = row[WDBIF.SNP]
+    if len(rows) == 0:
+        rows[snp] = row
+    else:
+        existing_key = rows.keys()[0]
+        r = rows[existing_key]
+        if math.fabs(float(r[WDBIF.WEIGHT])) < math.fabs(float(row[WDBIF.WEIGHT])):
+            del rows[existing_key]
+            rows[snp] = row

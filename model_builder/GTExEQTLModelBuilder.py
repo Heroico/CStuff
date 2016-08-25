@@ -3,38 +3,38 @@ import logging
 import os
 
 import Logging
-import PB8KFileInfo
+import GTExEQTLFileinfo
 import Utilities
 
 BETA="BETA"
 ZSCORE="ZSCORE"
 
+
 BEST="BEST"
 ALL="ALL"
 
 def callback_for_args(args):
-    if args.fdr_filter is not None:
-        filter = PB8KFileInfo.FDRFilter(args.fdr_filter)
-    else:
-        filter = None
+    # if args.fdr_filter is not None:
+    #     filter = PB8KFileInfo.FDRFilter(args.fdr_filter)
+    # else:
+    #     filter = None
+    MODEL_TYPE = {
+        BETA:GTExEQTLFileinfo.BetaRowFromComps(),
+        ZSCORE:GTExEQTLFileinfo.ZScoreRowFromComps()
+    }
+    if args.model_weight_type not in MODEL_TYPE:
+        raise RuntimeError("Wrong model type: %s", args.model_weight_type)
+    row_from_comps = MODEL_TYPE[args.model_weight_type]
 
-    if args.model_weight_type == BETA:
-        if not args.variance_path or not args.sample_size:
-            raise RuntimeError("Insufficient parameters for beta model")
-        row_from_comps = PB8KFileInfo.BetaRowFromComps(args.variance_path, args.sample_size)
-    elif args.model_weight_type == ZSCORE:
-        row_from_comps = PB8KFileInfo.ZScoreRowFromComps()
-    else:
-        raise RuntimeError("Wrong building type %s", args.model_building_type)
-
-    if args.model_building_criteria == ALL:
-        process_rows = Utilities.process_all_rows
-    elif args.model_building_criteria == BEST:
-        process_rows = Utilities.keep_best_row
-    else:
+    MODEL_CRITERIA = {
+        ALL:Utilities.process_all_rows,
+        BEST:Utilities.keep_best_row
+    }
+    if args.model_building_criteria not in MODEL_CRITERIA:
         raise RuntimeError("Wrong building criteria: %s", args.model_building_criteria)
+    process_row = MODEL_CRITERIA[args.model_building_criteria]
 
-    callback = PB8KFileInfo.PB8KFileCallback(row_from_comps, process_rows, filter)
+    callback = GTExEQTLFileinfo.GTExEQTLFileCallback(row_from_comps, process_row, filter)
     return callback
 
 def run(args):
@@ -46,47 +46,45 @@ def run(args):
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-    callback = callback_for_args(args)
-    PB8KFileInfo.parse_input_file(args.model_output_path, args.pb8k_input_path, args.gencode_input_path, callback)
+    the_callback = callback_for_args(args)
+    GTExEQTLFileinfo.parse_input_file(db_output_path=args.model_output_path,
+                                      gtex_pheno_input_path=args.gtex_eqtl_input_path,
+                                      gtex_snp_path=args.gtex_snp,
+                                      gencode_input_path=args.gencode_input_path,
+                                      gtex_callback=the_callback)
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser("Build Polygenic risk score model")
 
-    parser.add_argument("--pb8k_input_path",
+    parser.add_argument("--gtex_eqtl_input_path",
                         help="path to PB8K data files",
-                        default="data/2012-12-21-CisAssociationsProbeLevelFDR0.5.txt.gz")
+                        default="data/GTEx_Analysis_v6p_eQTL/Whole_Blood_Analysis.v6p.signif_snpgene_pairs.txt.gz")
 
     parser.add_argument("--gencode_input_path",
                         help="path to gencode file",
-                        default="data/gencode.v19.annotation.gtf.gz")
+                        default="data/gencode.v19.genes.v6p_model.patched_contigs.gtf.gz")
+
+    parser.add_argument("--gtex_snp",
+                        help= "snp metadata file",
+                        default="data/GTEx_OMNI_genot_1KG_imputed_var_info4_maf01_CR95_CHR_POSb37_ID_REF_ALT_release_v6.txt.gz")
 
     parser.add_argument("--model_output_path",
                         help="path to model file",
-                        default="results/PRS_PB8K_ZSCORE_ALL.db")
-
-    parser.add_argument("--variance_path",
-                        help="Optional: snp`variance file",
-                        default=None)
-#                        default="data/VAR_TGF_EUR_PB8K.txt.gz")
+                        default="results/Whole_Blood_Beta_BEST.db")
 
     parser.add_argument("--fdr_filter",
                         help="Optional false discovery ratio filter",
                         type=float,
                         default=None)
 
-    parser.add_argument("--sample_size",
-                        help="data sample size",
-                        type=int,
-                        default=5311)
-
     parser.add_argument("--model_building_criteria",
                         help="Type of PRS model. [BEST/ALL] snps in a gene.",
-                        default=ALL)
+                        default=BEST)
 
     parser.add_argument("--model_weight_type",
                         help="Type of PRS model wright. [ZSCORE/BETA]; BETA requires variance and sample size parameter",
-                        default=ZSCORE)
+                        default=BETA)
 
     parser.add_argument("--expect_throw",
                     help="Debug mode for incomplete gzipped file",

@@ -10,6 +10,7 @@ class SNPTF(object):
     RS_ID_dbSNP135_original_VCF=5
     RS_ID_dbSNP142_CHG37p13=6
     Num_alt_per_site=7
+    HEADER="Chr\tPos\tVariantID\tRef_b37 Alt\tRS_ID_dbSNP135_original_VCF\tRS_ID_dbSNP142_CHG37p13\tNum_alt_per_site"
 
 class SNP_E_F(object):
     RSID=0

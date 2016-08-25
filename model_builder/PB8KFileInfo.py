@@ -88,41 +88,6 @@ class BetaRowFromComps(object):
         row = (snp, None, gene_name, reference_allele, effect_allele, b, "NA", "NA", p, q)
         return row
 
-
-#keep all snps
-def process_all_rows(row, genes):
-    F = Utilities.WDBIF
-    gene_name = row[F.GENE_NAME]
-    if not gene_name in genes:
-        genes[gene_name] = {}
-    rows = genes[gene_name]
-    snp = row[F.SNP]
-    if snp in rows:
-        #overwrite existing only if better
-        existing = rows[snp]
-        if math.fabs(float(existing[F.WEIGHT])) < math.fabs(float(row[F.WEIGHT])):
-            rows[snp] = row
-    else:
-        rows[snp] = row
-
-#keep only the best snp weight
-def keep_best_row(row, genes):
-    F = Utilities.WDBIF
-    gene_name = row[F.GENE_NAME]
-    if not gene_name in genes:
-        genes[gene_name] = {}
-
-    rows = genes[gene_name]
-    snp = row[Utilities.WDBIF.SNP]
-    if len(rows) == 0:
-        rows[snp] = row
-    else:
-        existing_key = rows.keys()[0]
-        r = rows[existing_key]
-        if math.fabs(float(r[F.WEIGHT])) < math.fabs(float(row[F.WEIGHT])):
-            del rows[existing_key]
-            rows[snp] = row
-
 # Master callback for each row in PB8K file
 class PB8KFileCallback(object):
     def __init__(self, row_from_comps, process_row, row_filter, TF=TF1):
@@ -143,11 +108,11 @@ class PB8KFileCallback(object):
             for g in multiple_genes:
                 row = self.row_from_comps(i, comps, g)
                 if row:
-                    self.process_row(row, self.genes)
+                    self.process_row(row, self.genes, Utilities.WDBIF.GENE_NAME)
         else:
             row = self.row_from_comps(i, comps, gene_name)
             if row:
-                self.process_row(row, self.genes)
+                self.process_row(row, self.genes, Utilities.WDBIF.GENE_NAME)
 
 def fix_row(genes):
     F = Utilities.WDBIF
