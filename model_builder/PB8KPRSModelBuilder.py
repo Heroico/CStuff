@@ -51,7 +51,7 @@ def run(args):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser("Build Intron Quantification and Geuvadis phenotype to transcriptome model pipeline input")
+    parser = argparse.ArgumentParser("Build Polygenic risk score model")
 
     parser.add_argument("--pb8k_input_path",
                         help="path to PB8K data files",

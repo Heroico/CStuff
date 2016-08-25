@@ -49,7 +49,7 @@ class FDRFilter(object):
         return True
 
 # Function-like object to act as row builder
-# Zscore as weight
+# Zscore as weight, tentatively loading Pvalue and FDR even though it might discarded
 # See Utilities.WDBIF format for output
 class ZScoreRowFromComps(object):
     def __init__(self, tf=TF1):
@@ -59,10 +59,13 @@ class ZScoreRowFromComps(object):
         snp = comps[self.TF.SNPName]
         reference_allele, effect_allele = alleles(self.TF, comps)
         zscore = comps[self.TF.OverallZScore]
-        row = (snp, None, gene_name, zscore, reference_allele, effect_allele)
+        p = comps[self.TF.PValue]
+        q = comps[self.TF.FDR]
+        row = (snp, None, gene_name, reference_allele, effect_allele, zscore, "NA", "NA", p, q)
         return row
+
 # Function-like object to act as row builder
-# BETA as weight
+# BETA as weight, tentatively loading Pvalue and FDR even though it might discarded
 # See Utilities.WDBIF format for output
 class BetaRowFromComps(object):
     def __init__(self, variance_file_path, sample_size, TF=TF1):
@@ -80,29 +83,35 @@ class BetaRowFromComps(object):
         v = self.vars[snp]
         std = math.sqrt(v/self.sample_size)
         b = str(float(zscore)*std)
-        row = (snp, None, gene_name, b, reference_allele, effect_allele)
+        p = comps[self.TF.PValue]
+        q = comps[self.TF.FDR]
+        row = (snp, None, gene_name, reference_allele, effect_allele, b, "NA", "NA", p, q)
         return row
+
 
 #keep all snps
 def process_all_rows(row, genes):
-    gene_name = row[Utilities.WDBIF.GENE_NAME]
+    F = Utilities.WDBIF
+    gene_name = row[F.GENE_NAME]
     if not gene_name in genes:
         genes[gene_name] = {}
     rows = genes[gene_name]
-    snp = row[Utilities.WDBIF.SNP]
+    snp = row[F.SNP]
     if snp in rows:
         #overwrite existing only if better
         existing = rows[snp]
-        if float(row[Utilities.WDBIF.WEIGHT]) > float(existing[Utilities.WDBIF.WEIGHT]):
+        if math.fabs(float(existing[F.WEIGHT])) < math.fabs(float(row[F.WEIGHT])):
             rows[snp] = row
     else:
         rows[snp] = row
 
 #keep only the best snp weight
 def keep_best_row(row, genes):
-    gene_name = row[Utilities.WDBIF.GENE_NAME]
+    F = Utilities.WDBIF
+    gene_name = row[F.GENE_NAME]
     if not gene_name in genes:
         genes[gene_name] = {}
+
     rows = genes[gene_name]
     snp = row[Utilities.WDBIF.SNP]
     if len(rows) == 0:
@@ -110,7 +119,7 @@ def keep_best_row(row, genes):
     else:
         existing_key = rows.keys()[0]
         r = rows[existing_key]
-        if math.fabs(float(r[Utilities.WDBIF.WEIGHT])) < math.fabs(float(row[Utilities.WDBIF.WEIGHT])):
+        if math.fabs(float(r[F.WEIGHT])) < math.fabs(float(row[F.WEIGHT])):
             del rows[existing_key]
             rows[snp] = row
 
@@ -125,8 +134,8 @@ class PB8KFileCallback(object):
 
     def __call__(self, i, comps):
         if self.row_filter:
-            skip = self.row_filter(comps)
-            if skip:
+            passes_filter = self.row_filter(comps)
+            if not passes_filter:
                 return
         gene_name = comps[self.TF.HUGO]
         if "," in gene_name:
@@ -140,14 +149,35 @@ class PB8KFileCallback(object):
             if row:
                 self.process_row(row, self.genes)
 
+def fix_row(genes):
+    F = Utilities.WDBIF
+    keys = genes.keys()
+    for gene in keys:
+        rows = genes[gene]
+        input = [(math.fabs(float(r[F.WEIGHT])), float(r[F.GENE_PVALUE]), float(r[F.GENE_QVALUE]), r[F.SNP]) for r in rows]
+        w = sum(map(lambda x: x[0], input))
+        if w == 0:
+            logging.info("Cannot handle null variance for %s", gene)
+            a_p = None
+            a_q = None
+        else:
+            a_p = str(sum(map(lambda x: math.fabs(x[0])*x[1], input)) / w)
+            a_q = str(sum(map(lambda x: math.fabs(x[0])*x[2], input)) / w)
+        n = str(len(input))
+        genes[gene] = [(r[F.SNP], r[F.GENE], r[F.GENE_NAME], r[F.REFERENCE_ALLELE], r[F.EFFECT_ALLELE], r[F.WEIGHT], n, r[F.GENE_R2], a_p, a_q) for r in rows]
+    return genes
 
 def parse_input_file(db_output_path, pheno_input_path, gencode_input_path,  pb8k_callback):
-    logging.info("Opening PB8K pheno phile")
+    logging.info("Opening PB8K pheno file")
     file_iterator = Utilities.CSVFileIterator(pheno_input_path, delimiter="\t", header=TF1.HEADER, compressed=True)
     file_iterator.iterate(pb8k_callback)
 
     logging.info("Opening gencode file")
-    class GenCodeCallback(object):
+    def fixed_row(gencode, row):
+        F = Utilities.WDBIF
+        return (row[F.SNP], gencode.ensemble_version, row[F.GENE_NAME], row[F.REFERENCE_ALLELE], row[F.EFFECT_ALLELE], row[F.WEIGHT], row[F.N_SNP], row[F.GENE_R2], row[F.GENE_PVALUE], row[F.GENE_QVALUE])
+
+    class FixGeneCallback(object):
         def __init__(self, genes):
             self.genes = genes
             self.selected = {}
@@ -155,11 +185,14 @@ def parse_input_file(db_output_path, pheno_input_path, gencode_input_path,  pb8k
         def __call__(self, gencode):
             if gencode.name in self.genes:
                 rows = self.genes[gencode.name]
-                F = Utilities.WDBIF
-                self.selected[gencode.name] = [(row[F.SNP], gencode.ensemble_version, row[F.GENE_NAME], row[F.WEIGHT], row[F.REFERENCE_ALLELE], row[F.EFFECT_ALLELE]) for k,row in rows.iteritems()]
-    gencode_callback = GenCodeCallback(pb8k_callback.genes)
+                self.selected[gencode.name] = [fixed_row(gencode, row) for k,row in rows.iteritems()]
+
+    gencode_callback = FixGeneCallback(pb8k_callback.genes)
     GencodeFile.parse_gencode_file(gencode_input_path, gencode_callback)
     genes = gencode_callback.selected
+
+    logging.info("Fixing rows")
+    genes = fix_row(genes)
 
     logging.info("Saving entries")
     connection = Utilities.connect(db_output_path)

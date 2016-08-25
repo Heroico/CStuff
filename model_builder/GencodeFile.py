@@ -25,7 +25,7 @@ class GFTF:
     TRANSCRIPT_ID = "transcript_id"
     GENE_TYPE = "gene_type"
     GENE_STATUS = "gene_status"
-    GENE_NAME = "gene_status"
+    GENE_NAME = "gene_name"
     TRANSCRIPT_TYPE = "transcript_type"
     TRANSCRIPT_STATUS = "transcript_status"
     TRANSCRIPT_NAME = "transcript_name"
@@ -116,7 +116,7 @@ class GenCode(object):
             if key is None:
                 key = string
             elif value is None:
-                value = string.translate(None,'"\n')
+                value = string.translate(None,'";\n')
                 if key == GFTF.GENE_ID:
                     gencode.gene_id = value
                     gencode.ensemble_version = value.translate(None,'"')
@@ -147,7 +147,6 @@ class GenCode(object):
                     gencode.tag = value
                 key = None
                 value = None
-
         return gencode
 
 

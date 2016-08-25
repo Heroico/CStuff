@@ -33,21 +33,26 @@ def connect(db_path):
 
 def setup_db(connection):
     cursor = connection.cursor()
-    cursor.execute("CREATE TABLE extra (gene TEXT, genename TEXT, R2 DOUBLE,  `n.snps` INTEGER, pval DOUBLE)")
-    cursor.execute("CREATE INDEX extra_gene ON extra (gene)")
-    cursor.execute("CREATE TABLE weights (rsid TEXT, gene TEXT, weight DOUBLE, ref_allele CHARACTER, eff_allele CHARACTER, pval DOUBLE, N INTEGER, cis INTEGER)")
-    cursor.execute("CREATE INDEX weights_rsid ON weights (rsid)")
-    cursor.execute("CREATE INDEX weights_gene ON weights (gene)")
-    cursor.execute("CREATE INDEX weights_rsid_gene ON weights (rsid, gene)")
+    cursor.execute("CREATE TABLE extra(gene TEXT, genename TEXT, `n.snps.in.model` INTEGER, `pred.perf.R2` DOUBLE, `pred.perf.pval` DOUBLE, `pred.perf.qval`DOUBLE);")
+    cursor.execute("CREATE TABLE weights(rsid TEXT, gene TEXT, weight DOUBLE, ref_allele CHARACTER, eff_allele CHARACTER);")
+    cursor.execute("CREATE INDEX extra_gene ON extra(gene);")
+    cursor.execute("CREATE INDEX weights_gene ON weights(gene);")
+    cursor.execute("CREATE INDEX weights_rsid ON weights(rsid);")
+    cursor.execute("CREATE INDEX weights_rsid_gene ON weights(rsid, gene);")
     connection.commit()
 
+# Weight DB input row format. So that we know how to read in data.
 class WDBIF(object):
     SNP = 0
     GENE = 1
     GENE_NAME = 2
-    WEIGHT = 3
-    REFERENCE_ALLELE = 4
-    EFFECT_ALLELE = 5
+    REFERENCE_ALLELE = 3
+    EFFECT_ALLELE = 4
+    WEIGHT = 5
+    N_SNP = 6
+    GENE_R2 = 7
+    GENE_PVALUE = 8
+    GENE_QVALUE = 9
 
 # Send tuples because they use less memory. Fullfledged objects might be too much.
 def insert_entries(db, gene_entries):
@@ -60,7 +65,7 @@ def insert_entries(db, gene_entries):
             continue
         i += len(rows)
         insert = [(e[WDBIF.SNP], e[WDBIF.GENE], e[WDBIF.WEIGHT], e[WDBIF.REFERENCE_ALLELE], e[WDBIF.EFFECT_ALLELE],) for e in rows]
-        cursor.executemany("INSERT INTO weights VALUES(?, ?, ?, ?, ?, NULL, NULL, NULL)", insert)
+        cursor.executemany("INSERT INTO weights(rsid, gene, weight, ref_allele, eff_allele) VALUES(?, ?, ?, ?, ?)", insert)
     logging.info("Inserted %d snp entries", i)
 
     logging.info("Inserting gene entries")
@@ -70,8 +75,8 @@ def insert_entries(db, gene_entries):
             continue
         r = rows[0]
         i += 1
-        insert = (r[WDBIF.GENE], r[WDBIF.GENE_NAME], "NA", len(rows), "NA")
-        cursor.execute("INSERT INTO extra VALUES(?, ?, ?, ?, ?)", insert)
+        insert = (r[WDBIF.GENE], r[WDBIF.GENE_NAME], len(rows), r[WDBIF.GENE_R2], r[WDBIF.GENE_PVALUE], r[WDBIF.GENE_QVALUE])
+        cursor.execute("INSERT INTO extra(gene, genename, `n.snps.in.model`, `pred.perf.R2`, `pred.perf.pval`, `pred.perf.qval`) VALUES(?, ?, ?, ?, ?, ?)", insert)
     logging.info("Inserted %d gene entries", i)
     db.commit()
 
