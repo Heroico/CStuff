@@ -52,6 +52,7 @@ def run(args):
                                       gtex_snp_path=args.gtex_snp,
                                       gencode_input_path=args.gencode_input_path,
                                       gtex_callback=the_callback)
+    logging.info("Ran successfully")
 
 if __name__ == "__main__":
     import argparse

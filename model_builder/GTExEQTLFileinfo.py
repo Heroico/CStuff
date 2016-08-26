@@ -144,7 +144,8 @@ def parse_input_file(db_output_path, gtex_pheno_input_path, gencode_input_path, 
     snp_iterator = Utilities.CSVFileIterator(gtex_snp_path, delimiter="\t", compressed=True) #header in the file is just wrong., header=GTExSNPFile.SNPTF.HEADER, compressed=True)
     snp_iterator.iterate(snp_callback)
     genes = snp_callback.selected
-    del snp_callback.selected
+    logging.info("%d survived after snp file", len(genes))
+    del snp_callback
 
     logging.info("Fixing rows")
     fix_rows(genes, pvalues)

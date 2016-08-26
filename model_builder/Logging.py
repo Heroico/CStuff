@@ -3,7 +3,7 @@ __author__ = 'heroico'
 import logging
 import sys
 
-def configureLogging(level=5, target=sys.stderr):
+def configureLogging(level=5, target=sys.stdout):
     logger = logging.getLogger()
     logger.setLevel(level)
 
