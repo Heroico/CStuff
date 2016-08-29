@@ -58,8 +58,9 @@ class GTExEQTLFileCallback(object):
 
     def __call__(self, i, comps):
         row = self.row_from_comps(i, comps)
-        self.process_row(row, self.genes, Utilities.WDBIF.GENE)
-        self.pvalues.append(float(row[Utilities.WDBIF.GENE_PVALUE]))
+        if row is not None:
+            self.process_row(row, self.genes, Utilities.WDBIF.GENE)
+            self.pvalues.append(float(row[Utilities.WDBIF.GENE_PVALUE]))
 
 def fix_rows(genes, pvalues):
     pvalues = numpy.array(pvalues)

@@ -3,7 +3,7 @@ import logging
 import os
 
 import Logging
-import GTExEQTLFileinfo
+import FranzenEQTLFileInfo
 import Utilities
 
 BETA="BETA"
@@ -18,13 +18,14 @@ def callback_for_args(args):
     #     filter = PB8KFileInfo.FDRFilter(args.fdr_filter)
     # else:
     #     filter = None
-    MODEL_TYPE = {
-        BETA:GTExEQTLFileinfo.BetaRowFromComps(),
-        ZSCORE:GTExEQTLFileinfo.ZScoreRowFromComps()
-    }
-    if args.model_weight_type not in MODEL_TYPE:
-        raise RuntimeError("Wrong model type: %s", args.model_weight_type)
-    row_from_comps = MODEL_TYPE[args.model_weight_type]
+    if args.model_weight_type == BETA:
+        if not args.variance_path or not args.sample_size:
+            raise RuntimeError("Insufficient parameters for beta model")
+        row_from_comps = FranzenEQTLFileInfo.BetaRowFromComps(args.variance_path, args.sample_size)
+    elif args.model_weight_type == ZSCORE:
+        row_from_comps = FranzenEQTLFileInfo.ZScoreRowFromComps()
+    else:
+        raise RuntimeError("Wrong building type %s", args.model_building_type)
 
     MODEL_CRITERIA = {
         ALL:Utilities.process_all_rows,
@@ -34,7 +35,7 @@ def callback_for_args(args):
         raise RuntimeError("Wrong building criteria: %s", args.model_building_criteria)
     process_row = MODEL_CRITERIA[args.model_building_criteria]
 
-    callback = GTExEQTLFileinfo.GTExEQTLFileCallback(row_from_comps, process_row)
+    callback = FranzenEQTLFileInfo.FranzenEQTLFileCallback(row_from_comps, process_row)
     return callback
 
 def run(args):
@@ -47,24 +48,19 @@ def run(args):
         os.makedirs(folder)
 
     the_callback = callback_for_args(args)
-    GTExEQTLFileinfo.parse_input_file(db_output_path=args.model_output_path,
-                                      gtex_pheno_input_path=args.gtex_eqtl_input_path,
-                                      gtex_snp_path=args.gtex_snp,
-                                      gencode_input_path=args.gencode_input_path,
-                                      gtex_callback=the_callback)
+    FranzenEQTLFileInfo.parse_input_file(db_output_path=args.model_output_path,
+                                         franzen_pheno_input_path=args.franzen_eqtl_input_path,
+                                         gtex_snp_path=args.gtex_snp,
+                                         franzen_callback=the_callback)
     logging.info("Ran successfully")
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser("Build Polygenic risk score model")
 
-    parser.add_argument("--gtex_eqtl_input_path",
+    parser.add_argument("--franzen_eqtl_input_path",
                         help="path to PB8K data files",
-                        default="data/GTEx_Analysis_v6p_eQTL/Whole_Blood_Analysis.v6p.signif_snpgene_pairs.txt.gz")
-
-    parser.add_argument("--gencode_input_path",
-                        help="path to gencode file",
-                        default="data/gencode.v19.genes.v6p_model.patched_contigs.gtf.gz")
+                        default="data/franzen/franzen-eqtl-aor.csv.gz")
 
     parser.add_argument("--gtex_snp",
                         help= "snp metadata file",
@@ -72,7 +68,16 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_output_path",
                         help="path to model file",
-                        default="results/Whole_Blood_Beta_BEST.db")
+                        default="results/franzen/PRS_ZSCORE_BEST_franzen-eqtl-aor.db")
+
+    parser.add_argument("--sample_size",
+                        help="data sample size",
+                        type=int,
+                        default=600)
+
+    parser.add_argument("--variance_path",
+                        help="Optional: snp`variance file",
+                        default=None)
 
     parser.add_argument("--fdr_filter",
                         help="Optional false discovery ratio filter",
@@ -85,7 +90,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_weight_type",
                         help="Type of PRS model wright. [ZSCORE/BETA]; BETA requires variance and sample size parameter",
-                        default=BETA)
+                        default=ZSCORE)
 
     parser.add_argument("--expect_throw",
                     help="Debug mode for incomplete gzipped file",

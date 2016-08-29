@@ -157,6 +157,7 @@ def process_all_rows(row, genes, gene_key):
 
 #keep only the best snp weight
 def keep_best_row(row, genes, gene_key):
+
     gene_key = row[gene_key]
     if not gene_key in genes:
         genes[gene_key] = {}
