@@ -59,7 +59,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("Build Polygenic risk score model")
 
     parser.add_argument("--gtex_eqtl_input_path",
-                        help="path to PB8K data files",
+                        help="path to GTEx data files",
                         default="data/GTEx_Analysis_v6p_eQTL/Whole_Blood_Analysis.v6p.signif_snpgene_pairs.txt.gz")
 
     parser.add_argument("--gencode_input_path",
