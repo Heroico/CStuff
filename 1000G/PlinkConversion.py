@@ -23,26 +23,34 @@ def run_job(input_path, output_path, job_script_path, logs_folder):
     if os.path.exists(job_script_path):
         logging.info("File %s already exisits, skipping", job_script_path)
 
+    path, file_name = os.path.split(job_script_path)
+    file_name = file_name.split(".")[0]
     with open(job_script_path, "w") as file:
         job = "#!/bin/bash" + "\n\n"
-        job += "#PBS -N " + job_script_path + "\n\n"
+        job += "#PBS -N " + file_name + "\n\n"
         job += "#PBS -S /bin/bash" + "\n\n"
         job += "#PBS -l walltime=1:00:00" + "\n\n"
         job += "#PBS -l nodes=1:ppn=1" + "\n\n"
         job += "#PBS -l mem=4gb" + "\n\n"
         job += "#PBS -o " + logs_folder + "/${PBS_JOBNAME}.o${PBS_JOBID}.log" + "\n\n"
         job += "#PBS -e " + logs_folder + "/${PBS_JOBNAME}.e${PBS_JOBID}.err" + "\n\n"
-        job += "cd $PBS_O_WORKDIR" + "\n\n"
         job += "module load plink/1.90" +"\n\n"
-        job += "plink --vcf " + input_path + " --out " + output_path
+        job += "cd $PBS_O_WORKDIR" + "\n\n"
+        job += "plink \\\n"
+        job += "--memory 4096 \\\n"
+        job += "--vcf " + input_path + " \\\n"
+        job += "--out " + output_path + " \\\n"
+        job += "--biallelic-only strict \\\n"
+        job += "--vcf-filter q10 \n"
+
         file.write(job)
     retry = 0
 
-    # while call(["qsub",job_script_path]) != 0 and retry < 10:
-    #     logging.info("retry %s %i-th attempt", job_script_path, retry)
-    #     retry += 1
-    #     time.sleep(0.1)
-    # time.sleep(0.1)
+    while call(["qsub",job_script_path]) != 0 and retry < 10:
+        logging.info("retry %s %i-th attempt", job_script_path, retry)
+        retry += 1
+        time.sleep(0.1)
+    time.sleep(0.1)
 
 def run(args):
     if not os.path.exists(args.intermediate_folder):
