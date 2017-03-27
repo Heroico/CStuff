@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--results_file",
                     help="output where intron annotation will be saved",
-                    default="results/gencode.v19.annotation.gtf.txt")
+                    default="results/gencode.v19.annotation.gtf.txt.gz")
 
     parser.add_argument("--verbosity",
                     help="Log verbosity level. 1 is everything being logged. 10 is only high level messages, above 10 will hardly log anything",
