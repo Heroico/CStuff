@@ -144,7 +144,7 @@ def _args():
             self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/predictdb/GTEx-V6p-HapMap-2016-09-08"
             self.predict_expression_command=  "/project/haky/im-lab/nas40t2/abarbeira/software/PrediXcan/Software/predict_gene_expression.py"
             self.dosages_folder = "/project/haky/Data/GTEx/V6p/genotypes/"
-            self.dosages_prefix = "TW_Muscle_Skeletal"
+            self.dosages_prefix = "Muscle_Skeletal"
             self.gtex_snps = "/project/haky/Data/GTEx/V6p/GTEx_Analysis_v6_OMNI_genot_1KG_imputed_var_chr1to22_info4_maf01_CR95_CHR_POSb37_ID_REF_ALT.txt.gz"
             self.partition="broadwl"
             self.output_folder = "results_gtex"
