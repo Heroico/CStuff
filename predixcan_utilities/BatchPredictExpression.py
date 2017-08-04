@@ -123,17 +123,13 @@ def _args():
         def __init__(self):
             self.logs = "logs"
             self.jobs = "jobs"
-            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/predictdb/GTEx-V6p-HapMap-2016-09-08"
+            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/data/metaxcan/GTEx-V6p-HapMap-2016-09-08"
             self.predict_expression_command=  "/project/haky/im-lab/nas40t2/abarbeira/software/PrediXcan/Software/predict_gene_expression.py"
             self.dosages_folder = "/project/haky/im-lab/nas40t2/kaanan/BD"
             self.dosages_prefix = "BD_chr"
             self.gtex_snps = None
             self.partition="broadwl"
             self.output_folder = "results_bd"
-            # self.dosages_folder = "/project/haky/im-lab/nas40t2/kaanan/T1D"
-            # self.dosages_prefix = "T1D_chr"
-            # self.partition="broadwl"
-            # self.output_folder = "results_t1d"
             self.verbosity = 10
             self.fake_submission = False
 
@@ -141,7 +137,35 @@ def _args():
         def __init__(self):
             self.logs = "logs"
             self.jobs = "jobs"
-            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/predictdb/GTEx-V6p-HapMap-2016-09-08"
+            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/data/metaxcan/GTEx-V6p-HapMap-2016-09-08"
+            self.predict_expression_command=  "/project/haky/im-lab/nas40t2/abarbeira/software/PrediXcan/Software/predict_gene_expression.py"
+            self.dosages_folder = "/project/haky/im-lab/nas40t2/kaanan/T1D"
+            self.dosages_prefix = "T1D_chr"
+            self.gtex_snps = None
+            self.partition="broadwl"
+            self.output_folder = "results_t1d"
+            self.verbosity = 10
+            self.fake_submission = False
+
+    class Args3(object):
+        def __init__(self):
+            self.logs = "logs"
+            self.jobs = "jobs"
+            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/data/metaxcan/GTEx-V6p-HapMap-2016-09-08"
+            self.predict_expression_command=  "/project/haky/im-lab/nas40t2/abarbeira/software/PrediXcan/Software/predict_gene_expression.py"
+            self.dosages_folder = "/project/haky/im-lab/nas40t2/kaanan/T2D"
+            self.dosages_prefix = "T2D_chr"
+            self.gtex_snps = None
+            self.partition="broadwl"
+            self.output_folder = "results_t2d"
+            self.verbosity = 10
+            self.fake_submission = False
+
+    class Args4(object):
+        def __init__(self):
+            self.logs = "logs"
+            self.jobs = "jobs"
+            self.weights_folder = "/project/haky/im-lab/nas40t2/abarbeira/data/metaxcan/GTEx-V6p-HapMap-2016-09-08"
             self.predict_expression_command=  "/project/haky/im-lab/nas40t2/abarbeira/software/PrediXcan/Software/predict_gene_expression.py"
             self.dosages_folder = "/project/haky/Data/GTEx/V6p/genotypes/"
             self.dosages_prefix = "Muscle_Skeletal"
@@ -151,7 +175,7 @@ def _args():
             self.verbosity = 10
             self.fake_submission = False
 
-    return Args2()
+    return Args3()
 
 def run(args):
     if not os.path.exists(args.logs): os.makedirs(args.logs)
